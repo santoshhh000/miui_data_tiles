@@ -1,0 +1,240 @@
+#!/sbin/sh
+## 
+CPU_ABI=$(getprop ro.product.cpu.abi)
+Android=$(getprop ro.build.version.release)
+versionName=$(pm dump com.android.systemui | grep -m 1 versionName | sed -n 's/.*=//p')
+
+## module.prop
+id=Miui_Data_UsageTiles
+name="MiuiDataUsageTilev${versionName} Auto"
+version=1.6.1
+versionCode=210824
+author=santoshhh000
+description="enables data usage tiles in Miui control center"
+
+Echo() {
+  echo '#!/system/bin/sh
+chmod 731 /data/system/theme
+rm -rf /data/system/package_cache/*' >$TMPDIR/service.sh
+  echo '#!/system/bin/sh
+if [ ! -e "/system/system_ext/priv-app/MiuiSystemUI/MiuiSystemUI.apk" ]; then
+  YuK=MiuiSystemUI
+else
+  YuK=MiuiSystemUI
+fi
+dda=/data/dalvik-cache/arm
+[ -d ${dda}64 ] && dda=${dda}64
+for i in $YuK; do
+  rm -rf $dda/system@*@{$i}*
+done
+rm -rf /data/system/package_cache/*
+chmod 775 /data/system/theme
+rm -rf /data/system/theme/rights
+rm -rf /data/app/*/com.android.systemui*
+rm -rf /data/app/com.android.systemui*' >$TMPDIR/uninstall.sh
+}
+
+## Installation
+on_install() {
+  Print "________________"
+  Print " ※ Module Installation ※"
+  Print "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯"
+  Print "- flashing" && su 2000 -c cmd notification post ttt Patching: flashing >/dev/null
+  Print "- Configuring Apktool, please wait" && su 2000 -c cmd notification post ttt Patch: ApktoolisBeingConfigured,PleaseWait >/dev/null
+  mkdir -p /data/local/Apktool
+  unzip -p "$ZIPFILE" 'Apktool.tar.xz' | tar xJ -C /data/local/Apktool >/dev/null
+  chmod -R 777 /data/local/Apktool
+  a() {
+    echo "Test" >/sdcard/Android/YuKongA.txt
+    if [ -e /sdcard/Android/YuKongA.txt ]; then
+      if [ -e /data/data/per.pqy.openjdk ]; then
+        sleep 0.1
+      else
+        cp -rf /data/local/Apktool/per.pqy.openjdk /data/data
+        chmod -R 777 /data/data/per.pqy.openjdk
+      fi
+      rm -rf /sdcard/Android/YuKongA.txt
+    else
+      a
+    fi
+  }
+  a
+  apktool=/data/local/Apktool/apktool/apktool.sh
+  zipalign=/data/local/Apktool/apktool/openjdk/bin/zipalign
+  sed=/data/local/Apktool/sed
+  zip=/data/local/Apktool/zip
+  apk=$MODPATH/Apk
+  mkdir -p $apk/apk1
+  if [ ! -e "/system/system_ext/priv-app/MiuiSystemUI/MiuiSystemUI.apk" ]; then
+    YuK=MiuiSystemUI
+  else
+    YuK=MiuiSystemUI
+  fi
+  Path=$(pm path com.android.systemui | sed 's/package://g')
+  Print "- versionName：v$versionName"
+  Print "- Path：$Path"
+  cp -rf $Path $apk/base.apk
+  mkdir -p $MODPATH/system/app/$YuK
+  Print "- Start processing $YuK.apk"
+  Print "- This takes more than 15 seconds, please be patient" && su 2000 -c cmd notification post ttt Patching v$versionName：ProcessingAPK,PleaseBePatient >/dev/null
+  cd $apk
+  unzip -o "$apk/base.apk" 'classes*.dex' 'lib/*' -d $apk/apk1 >/dev/null
+  cd $apk/apk1/
+  $zip -r $apk/apk_origin.apk ./* >/dev/null
+  $apktool d -q -b -r -f -m $apk/apk_origin.apk
+  
+  Mod0=$(find $apk/apk1/apk_origin/smali*/com/android/systemui/controlcenter/utils/ -type f -name 'Constants.smali' 2>/dev/null | xargs grep -rl 'IS_INTERNATIONAL_BUILD' | sed 's/^\.\///' | sort)
+  
+  $sed -i 's/IS_INTERNATIONAL_BUILD:Z/IS_ALPHA_BUILD:Z/g' $Mod0
+  
+  mod0=${Mod0#$apk/apk1/apk_origin/smali*/}
+  
+  mod0=${mod0%/*.smali}
+  
+  mkdir -p $apk/apk2/smali/$mod0
+  cp -rf $Mod0 $apk/apk2/smali/$mod0
+  cp -rf $apk/apk1/apk_origin/apktool.yml $apk/apk2
+  case "$CPU_ABI" in
+  arm64*) Type=arm64 Wenj=arm64-v8a ;;
+  arm*) Type=arm Wenj=armeabi-v7a ;;
+  x86_64*) Type=x86_64 Wenj=x86_64 ;;
+  x86*) Type=x86 Wenj=x86 ;;
+  esac
+  mkdir -p $MODPATH/system/system_ext/priv-app/$YuK/lib/$Type
+  cp -rf $apk/apk1/apk_origin/lib/$Wenj/* $MODPATH/system/system_ext/priv-app/$YuK/lib/$Type
+  cd $apk/apk2/
+  $apktool b -q -f -c $apk/apk2 -o apk2.zip
+  rm -rf $apk/apk1/apk_origin
+  for file in $(ls -a $apk/apk1); do
+    if [ "${file##*.}"x = "dex"x ]; then
+      old=$(echo $file | tr -d "a-zA-Z" | tr -d ".")
+      if [ -Z $old ]; then
+        old=1
+      fi
+      new=$(echo $old | awk '{for(i=1;i<=NF;i++){$i+=1}}1')
+      cp -rf $apk/apk1/$file $apk/apk2/classes$new.dex
+    fi
+  done
+  cp -rf $apk/apk2/classes*.dex $apk/apk1
+  unzip -o "$apk/apk2/apk2.zip" -d $apk/apk1 >/dev/null
+  cd $apk/apk1
+  $zip -r $apk/base.apk ./* >/dev/null
+  $zipalign -v 4 $apk/base.apk $MODPATH/system/system_ext/priv-app/$YuK/$YuK.apk >/dev/null
+  Print "- Processing apk done"
+  Print "- Clean up useless files"
+  rm -rf $apk
+  case $Path in
+  /data*) rm -rf $Path ;;
+  *) ;;
+  esac
+  dda=/data/dalvik-cache/arm
+  [[ -d ${dda}64 ]] && dda=${dda}64
+  for i in $YuK; do
+    rm -rf $dda/system@*@${i}*
+  done
+  rm -rf /data/system/package_cache/*
+  rm -rf /data/local/Apktool
+  rm -rf /data/data/per.pqy.openjdk
+  Print "- Setting permissions"
+  set_perm_recursive $MODPATH 0 0 0755 0644
+  Print "________________"
+  Print "  ※ Precautions ※"
+  Print "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯"
+  Print "- Since it is an automatically compiled version, it is inevitable that there will be unpredictable problems"
+  Print "- If there is a problem after flashing, please uninstall the module"
+}
+
+Start_Time=$(date "+%Y-%m-%d %H:%M:%S")
+Print_Time=$(date "+%m.%d %H:%M")
+
+umask 022
+TMPDIR=/dev/tmp
+rm -rf $TMPDIR 2>/dev/null
+mkdir -p $TMPDIR
+mount /data 2>/dev/null
+OUTFD=$2
+ZIPFILE=$3
+
+Print() {
+  echo "$@"
+  sleep 0.015
+}
+
+if [ $Android -ge 11 ]; then
+  PERSISTDIR=/dev/*/.magisk/mirror/persist
+else
+  PERSISTDIR=/sbin/.magisk/mirror/persist
+fi
+
+Require() {
+  Print "- This version of Magisk is not supported by the current module."
+   Print "- Please install Magisk v20.4+!"
+   Print
+   Print "- or Magisk environment is incomplete."
+   Print "- Please fix the Magisk environment!"
+  exit 1
+}
+
+[ -f /data/adb/magisk/util_functions.sh ] || Require
+. /data/adb/magisk/util_functions.sh
+[ $MAGISK_VER_CODE -lt 20400 ] && Require
+
+setup_flashable
+mount_partitions
+api_level_arch_detect
+boot_actions
+
+Ver="version $version, print time $Print_Time"
+echo "id=$id
+name=$name
+version=$Ver
+versionCode=$versionCode
+author=$author
+description=$description" >$TMPDIR/module.prop
+[ ! -f $TMPDIR/module.prop ] && abort "! 从 zip Failed to extract file from ."
+
+Echo
+
+MODDIRNAME=modules_update
+MODULEROOT=$NVBASE/$MODDIRNAME
+MODID=$(grep_prop id $TMPDIR/module.prop)
+MODPATH=$MODULEROOT/$MODID
+rm -rf $MODPATH 2>/dev/null
+mkdir -p $MODPATH
+cp -rf $TMPDIR/* $MODPATH
+
+print_modname() {
+  Print "- Powered By Magisk"
+  Print "_________________________"
+  Print "  ※ Author information ※"
+  Print "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯"
+  Print " by santoshhh000"
+  Print " Youtube.com/alltrickscoin"
+  Print "_________________________"
+  Print "  ※ Module information ※"
+  Print "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯"
+  Print "- Module name: $name"
+  Print "- Module version: $version"
+  Print "- Module ID: $id"
+  Print "- Module author: $author"
+  Print "- Date updated: $versionCode"
+}
+
+print_modname
+on_install
+
+cd /
+rm -rf $TMPDIR
+
+Print "_____________________________"
+Print "  ※ Additional Information ※"
+Print "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯"
+Print "- Start Time: $Start_Time"
+End_Time=$(date "+%Y-%m-%d %H:%M:%S")
+Duration=$(Print $((Sleep_Time + $(date +%s -d "${End_Time}") - $(date +%s -d "${Start_Time}"))) | awk '{t=split("60 seconds 60 minutes 24 hours 999 days",a);for(n=1;n<t;n+=2){if($1==0)break;s=$1%a[n]a[n+1]s;$1=int($1/a[n])}print s}')
+Print "- Duration: $Duration"
+Print "_____________________________"
+Print "  ※ swipe successfully ※"
+Print "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯"
+Print "- Please restart the device." && su 2000 -c cmd notification post ttt Patchv$versionName：The flashing is successful, please restart the device >/dev/null
+exit 0
